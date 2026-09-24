@@ -95,46 +95,109 @@ class _QuickExpenseOverlayState extends State<QuickExpenseOverlay> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Quick Expense',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+         Row(
+  children: [
+    Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Icon(
+        Icons.flash_on_rounded,
+        color: Colors.blue,
+        size: 26,
+      ),
+    ),
+    const SizedBox(width: 12),
+    const Expanded(
+      child: Text(
+        'Quick Expense',
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+    IconButton(
+      onPressed: () {
+        Navigator.pop(context);
+      },
+      icon: const Icon(Icons.close_rounded),
+      tooltip: 'Close',
+    ),
+  ],
+),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           TextField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Amount',
-              prefixText: '₹ ',
-              border: OutlineInputBorder(),
-            ),
-          ),
+  controller: _amountController,
+  keyboardType: const TextInputType.numberWithOptions(
+    decimal: true,
+  ),
+  style: const TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.w600,
+  ),
+  decoration: InputDecoration(
+    labelText: 'Amount',
+    prefixText: '₹ ',
+    prefixStyle: const TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w600,
+    ),
+    filled: true,
+    fillColor: Colors.grey.shade50,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(
+        color: Colors.grey.shade300,
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(
+        color: Colors.blue,
+        width: 2,
+      ),
+    ),
+  ),
+),
 
           const SizedBox(height: 16),
 
-          DropdownButtonFormField<int>(
-            initialValue: _selectedCategoryId,
-            decoration: const InputDecoration(
-              labelText: 'Category',
-              border: OutlineInputBorder(),
-            ),
-            items: _categories.map<DropdownMenuItem<int>>((category) {
-              return DropdownMenuItem<int>(
-                value: category['id'],
-                child: Text(category['name']),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedCategoryId = value;
-              });
-            },
-          ),
+          const Text(
+  'Category',
+  style: TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+  ),
+),
+
+const SizedBox(height: 10),
+
+Wrap(
+  spacing: 8,
+  runSpacing: 8,
+  children: _categories.map<Widget>((category) {
+    final categoryId = category['id'] as int;
+    final isSelected = _selectedCategoryId == categoryId;
+
+    return ChoiceChip(
+      label: Text(category['name']),
+      selected: isSelected,
+      onSelected: (_) {
+        setState(() {
+          _selectedCategoryId = categoryId;
+        });
+      },
+    );
+  }).toList(),
+),
 
           const SizedBox(height: 16),
 
@@ -160,20 +223,34 @@ class _QuickExpenseOverlayState extends State<QuickExpenseOverlay> {
           const SizedBox(height: 20),
 
           SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _saveExpense,
-              child: _isSaving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text('Save Expense'),
+  width: double.infinity,
+  height: 52,
+  child: ElevatedButton.icon(
+    onPressed: _isSaving ? null : _saveExpense,
+    icon: _isSaving
+        ? const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
             ),
-          ),
+          )
+        : const Icon(Icons.check_rounded),
+    label: Text(
+      _isSaving ? 'Saving...' : 'Save Expense',
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    style: ElevatedButton.styleFrom(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ),
+  ),
+),
         ],
       ),
     );
