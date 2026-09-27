@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
+import '../utils/theme_manager.dart';
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final ThemeManager themeManager;
+
+  const LoginScreen({
+    super.key,
+    required this.themeManager,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -34,9 +40,10 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.pushReplacement(
   context,
   MaterialPageRoute(
-    builder: (context) => DashboardScreen(
-      authService: _authService,
-    ),
+   builder: (context) => DashboardScreen(
+  authService: _authService,
+  themeManager: widget.themeManager,
+),
   ),
 );
     } catch (e) {

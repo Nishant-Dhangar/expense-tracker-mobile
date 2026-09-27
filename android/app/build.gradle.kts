@@ -8,6 +8,9 @@ android {
     namespace = "com.example.expense_tracker_mobile"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+    compileOptions {
+    isCoreLibraryDesugaringEnabled = true
+}
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -46,4 +49,7 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

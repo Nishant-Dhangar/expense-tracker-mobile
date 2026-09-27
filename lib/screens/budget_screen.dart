@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/notification_service.dart';
 class BudgetScreen extends StatefulWidget {
   final AuthService authService;
 
@@ -102,11 +103,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
         _isLoading = false;
       });
+      await _checkBudgetNotification();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
       });
+      await _checkBudgetNotification();
     }
   }
 
@@ -211,6 +214,67 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
     return Colors.blue;
   }
+  Future<void> _checkBudgetNotification() async {
+  if (_budgetAmount == null || _budgetAmount! <= 0) {
+    return;
+  }
+
+  final prefs = await SharedPreferences.getInstance();
+
+  final notificationsEnabled =
+      prefs.getBool('notificationsEnabled') ?? false;
+
+  if (!notificationsEnabled) {
+    return;
+  }
+
+  final percentage =
+      (_spentAmount / _budgetAmount!) * 100;
+
+  final monthKey = '$_currentYear$_currentMonth';
+
+  // 100% budget alert
+  if (percentage >= 100) {
+    final alreadyNotified =
+        prefs.getBool('budget100Notified_$monthKey') ?? false;
+
+    if (!alreadyNotified) {
+      await NotificationService.showBudgetAlert(
+        title: 'Budget Exceeded',
+        body:
+            'You have exceeded your monthly budget by ₹${(_spentAmount - _budgetAmount!).toStringAsFixed(2)}.',
+      );
+
+      await prefs.setBool(
+        'budget100Notified_$monthKey',
+        true,
+      );
+    }
+
+    return;
+  }
+
+  // 80% budget alert
+  if (percentage >= 80) {
+    final alreadyNotified =
+        prefs.getBool('budget80Notified_$monthKey') ?? false;
+
+    if (alreadyNotified) {
+      return;
+    }
+
+    await NotificationService.showBudgetAlert(
+      title: 'Budget Alert',
+      body:
+          'You have used ${percentage.toStringAsFixed(0)}% of your monthly budget.',
+    );
+
+    await prefs.setBool(
+      'budget80Notified_$monthKey',
+      true,
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {

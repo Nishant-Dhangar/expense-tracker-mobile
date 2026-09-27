@@ -39,6 +39,10 @@ dependencies:
   dio: ^5.11.1
   dio_cookie_manager: ^3.5.0
   sensors_plus: ^7.1.0
+  fl_chart: ^1.2.0
+  shared_preferences: ^2.5.5
+  path_provider: ^2.1.6
+  flutter_local_notifications: ^22.3.1
 
 dev_dependencies:
   flutter_test:

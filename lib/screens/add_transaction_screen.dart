@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/notification_service.dart';
 class AddTransactionScreen extends StatefulWidget {
   final AuthService authService;
 
@@ -126,17 +127,19 @@ class _AddTransactionScreenState
           '${_selectedDate.day.toString().padLeft(2, '0')}';
 
       await widget.authService.addTransaction(
-        amount: amount,
-        type: _type,
-        description:
-            _descriptionController.text.trim(),
-        transactionDate: date,
-        categoryId: _selectedCategoryId!,
-      );
+  amount: amount,
+  type: _type,
+  description:
+      _descriptionController.text.trim(),
+  transactionDate: date,
+  categoryId: _selectedCategoryId!,
+);
 
-      if (!mounted) return;
+await _checkBudgetAfterExpense();
 
-      Navigator.pop(context, true);
+if (!mounted) return;
+
+Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
 
@@ -154,7 +157,132 @@ class _AddTransactionScreenState
       }
     }
   }
+Future<void> _checkBudgetAfterExpense() async {
+  if (_type != 'EXPENSE') {
+    return;
+  }
 
+  final prefs = await SharedPreferences.getInstance();
+
+  final notificationsEnabled =
+      prefs.getBool('notificationsEnabled') ?? false;
+debugPrint(
+  'NOTIFICATIONS ENABLED: $notificationsEnabled',
+);
+  if (!notificationsEnabled) {
+    return;
+  }
+
+  final now = DateTime.now();
+
+  final budget = await widget.authService.getBudget(
+    now.year,
+    now.month,
+  );
+  debugPrint('BUDGET RESULT: $budget');
+
+  if (budget == null) {
+    return;
+  }
+
+  final budgetAmount =
+      double.tryParse(budget['amount'].toString());
+
+  if (budgetAmount == null || budgetAmount <= 0) {
+    return;
+  }
+
+  final transactions =
+      await widget.authService.getTransactions();
+
+  double spent = 0;
+
+  for (final transaction in transactions) {
+    if (transaction['type']?.toString() != 'EXPENSE') {
+      continue;
+    }
+
+    final dateString =
+        transaction['transactionDate']?.toString();
+
+    if (dateString == null) {
+      continue;
+    }
+
+    final transactionDate =
+        DateTime.tryParse(dateString);
+
+    if (transactionDate == null) {
+      continue;
+    }
+
+    if (transactionDate.year == now.year &&
+        transactionDate.month == now.month) {
+      spent +=
+          double.tryParse(
+                transaction['amount'].toString(),
+              ) ??
+              0;
+    }
+  }
+
+  final percentage =
+      (spent / budgetAmount) * 100;
+debugPrint(
+  'BUDGET CHECK: spent=$spent, budget=$budgetAmount, percentage=$percentage',
+);
+  final monthKey =
+      '${now.year}_${now.month}';
+
+  // 🔴 100%+ alert
+  if (percentage >= 100) {
+    final alreadyNotified =
+    prefs.getBool(
+          'Budget100Notified_$monthKey',
+        ) ??
+        false;
+
+    if (!alreadyNotified) {
+      await NotificationService.showBudgetAlert(
+        title: 'Budget Exceeded',
+        body:
+            'You have exceeded your monthly budget by ₹${(spent - budgetAmount).toStringAsFixed(2)}.',
+      );
+
+      await prefs.setBool(
+        'Budget100Notified_$monthKey',
+        true,
+      );
+    }
+
+    return;
+  }
+
+  // 🟠 80% alert
+  if (percentage >= 80) {
+   final alreadyNotified =
+    prefs.getBool(
+          'Budget80Notified_$monthKey',
+        ) ??
+        false;
+        debugPrint(
+  '80% ALREADY NOTIFIED: $alreadyNotified',
+);
+
+    if (!alreadyNotified) {
+      await NotificationService.showBudgetAlert(
+        title: 'Budget Alert',
+        body:
+            'You have used ${percentage.toStringAsFixed(0)}% of your monthly budget.',
+      );
+
+     await prefs.setBool(
+  'Budget80Notified_$monthKey',
+  true,
+);
+    }
+  }
+}
   @override
   void dispose() {
     _amountController.dispose();
