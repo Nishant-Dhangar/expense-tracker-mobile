@@ -251,6 +251,7 @@ Future<Map<String, dynamic>> saveBudget({
   required double amount,
 }) async {
   await _cookieInitialization;
+
   try {
     final response = await _dio.post(
       '$baseUrl/api/budgets',
@@ -265,6 +266,44 @@ Future<Map<String, dynamic>> saveBudget({
   } on DioException catch (e) {
     throw Exception(
       'Unable to save budget: ${e.message}',
+    );
+  }
+}
+
+Future<Map<String, dynamic>> register({
+  required String name,
+  required String email,
+  required String password,
+}) async {
+  await _cookieInitialization;
+
+  try {
+    final response = await _dio.post(
+  '$baseUrl/api/users/register',
+      data: {
+        'name': name,
+        'email': email,
+        'password': password,
+      },
+    );
+
+    return Map<String, dynamic>.from(response.data);
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 400) {
+      throw Exception(
+        e.response?.data?.toString() ??
+            'Invalid registration details',
+      );
+    }
+
+    if (e.response?.statusCode == 409) {
+      throw Exception(
+        'Email is already registered',
+      );
+    }
+
+    throw Exception(
+      'Registration failed: ${e.message}',
     );
   }
 }

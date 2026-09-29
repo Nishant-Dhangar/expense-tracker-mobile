@@ -23,32 +23,41 @@ class SpendingChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (spending.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: Colors.grey.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(20),
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(28),
+    decoration: BoxDecoration(
+      color: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: Theme.of(context)
+            .dividerColor
+            .withValues(alpha: 0.15),
+      ),
+    ),
+    child: Column(
+      children: [
+        Icon(
+          Icons.pie_chart_outline_rounded,
+          size: 48,
+          color: Colors.grey.shade400,
         ),
-        child: Column(
-          children: [
-            Icon(
-              Icons.pie_chart_outline_rounded,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'No expenses this month',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 15,
-              ),
-            ),
-          ],
+        const SizedBox(height: 12),
+        Text(
+          'No expenses this month',
+          style: TextStyle(
+            color: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.color
+                ?.withValues(alpha: 0.60),
+            fontSize: 15,
+          ),
         ),
-      );
-    }
+      ],
+    ),
+  );
+}
 
     final entries = spending.entries.toList();
 
@@ -73,11 +82,13 @@ class SpendingChart extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: Colors.grey.withValues(alpha: 0.12),
-        ),
+  color: Theme.of(context).cardColor,
+  borderRadius: BorderRadius.circular(22),
+  border: Border.all(
+    color: Theme.of(context)
+        .dividerColor
+        .withValues(alpha: 0.15),
+  ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -116,12 +127,16 @@ class SpendingChart extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Total',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 13,
-                      ),
-                    ),
+  'Total',
+  style: TextStyle(
+    color: Theme.of(context)
+        .textTheme
+        .bodyMedium
+        ?.color
+        ?.withValues(alpha: 0.60),
+    fontSize: 13,
+  ),
+),
                     const SizedBox(height: 4),
                     Text(
                       '₹${total.toStringAsFixed(0)}',
@@ -189,9 +204,13 @@ class SpendingChart extends StatelessWidget {
                         '$percentage%',
                         textAlign: TextAlign.right,
                         style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
+  color: Theme.of(context)
+      .textTheme
+      .bodyMedium
+      ?.color
+      ?.withValues(alpha: 0.60),
+  fontSize: 12,
+),
                       ),
                     ),
                   ],

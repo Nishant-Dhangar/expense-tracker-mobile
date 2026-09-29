@@ -166,10 +166,17 @@ Future<void> _checkBudgetAfterExpense() async {
 
   final notificationsEnabled =
       prefs.getBool('notificationsEnabled') ?? false;
-debugPrint(
-  'NOTIFICATIONS ENABLED: $notificationsEnabled',
-);
+
   if (!notificationsEnabled) {
+    return;
+  }
+
+  final currentUser =
+      await widget.authService.getCurrentUser();
+
+  final userId = currentUser['id'];
+
+  if (userId == null) {
     return;
   }
 
@@ -179,7 +186,6 @@ debugPrint(
     now.year,
     now.month,
   );
-  debugPrint('BUDGET RESULT: $budget');
 
   if (budget == null) {
     return;
@@ -228,19 +234,20 @@ debugPrint(
 
   final percentage =
       (spent / budgetAmount) * 100;
-debugPrint(
-  'BUDGET CHECK: spent=$spent, budget=$budgetAmount, percentage=$percentage',
-);
+
   final monthKey =
       '${now.year}_${now.month}';
+
+  final budget80Key =
+      'budget80Notified_${userId}_$monthKey';
+
+  final budget100Key =
+      'budget100Notified_${userId}_$monthKey';
 
   // 🔴 100%+ alert
   if (percentage >= 100) {
     final alreadyNotified =
-    prefs.getBool(
-          'Budget100Notified_$monthKey',
-        ) ??
-        false;
+        prefs.getBool(budget100Key) ?? false;
 
     if (!alreadyNotified) {
       await NotificationService.showBudgetAlert(
@@ -250,7 +257,7 @@ debugPrint(
       );
 
       await prefs.setBool(
-        'Budget100Notified_$monthKey',
+        budget100Key,
         true,
       );
     }
@@ -260,14 +267,8 @@ debugPrint(
 
   // 🟠 80% alert
   if (percentage >= 80) {
-   final alreadyNotified =
-    prefs.getBool(
-          'Budget80Notified_$monthKey',
-        ) ??
-        false;
-        debugPrint(
-  '80% ALREADY NOTIFIED: $alreadyNotified',
-);
+    final alreadyNotified =
+        prefs.getBool(budget80Key) ?? false;
 
     if (!alreadyNotified) {
       await NotificationService.showBudgetAlert(
@@ -276,10 +277,10 @@ debugPrint(
             'You have used ${percentage.toStringAsFixed(0)}% of your monthly budget.',
       );
 
-     await prefs.setBool(
-  'Budget80Notified_$monthKey',
-  true,
-);
+      await prefs.setBool(
+        budget80Key,
+        true,
+      );
     }
   }
 }
@@ -308,110 +309,287 @@ debugPrint(
                 children: [
                   // Transaction type
                   SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(
-                        value: 'EXPENSE',
-                        label: Text('Expense'),
-                        icon: Icon(Icons.arrow_upward),
-                      ),
-                      ButtonSegment(
-                        value: 'INCOME',
-                        label: Text('Income'),
-                        icon: Icon(Icons.arrow_downward),
-                      ),
-                    ],
-                    selected: {_type},
-                    onSelectionChanged: (selection) {
-                      _changeType(selection.first);
-                    },
-                  ),
+  segments: const [
+    ButtonSegment(
+      value: 'EXPENSE',
+      label: Text('Expense'),
+      icon: Icon(Icons.arrow_upward_rounded),
+    ),
+    ButtonSegment(
+      value: 'INCOME',
+      label: Text('Income'),
+      icon: Icon(Icons.arrow_downward_rounded),
+    ),
+  ],
+  selected: {_type},
+  onSelectionChanged: (selection) {
+    _changeType(selection.first);
+  },
+  style: ButtonStyle(
+    padding: WidgetStateProperty.all(
+      const EdgeInsets.symmetric(
+        vertical: 14,
+        horizontal: 12,
+      ),
+    ),
+    textStyle: WidgetStateProperty.all(
+      const TextStyle(
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  ),
+),
 
                   const SizedBox(height: 25),
 
                   // Amount
                   TextField(
-                    controller: _amountController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Amount',
-                      prefixText: '₹ ',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+  controller: _amountController,
+  keyboardType: const TextInputType.numberWithOptions(
+    decimal: true,
+  ),
+  style: const TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+  ),
+  decoration: InputDecoration(
+    labelText: 'Amount',
+    hintText: '0.00',
+    prefixText: '₹ ',
+    prefixStyle: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      color: Theme.of(context).colorScheme.primary,
+    ),
+    filled: true,
+    fillColor: Theme.of(context).cardColor,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+        color: Theme.of(context)
+            .dividerColor
+            .withValues(alpha: 0.35),
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.primary,
+        width: 1.5,
+      ),
+    ),
+  ),
+),
 
                   const SizedBox(height: 16),
 
                   // Category
-                  DropdownButtonFormField<int>(
-                    initialValue: _selectedCategoryId,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _categories.map((category) {
-                      return DropdownMenuItem<int>(
-                        value: category['id'],
-                        child: Text(
-                          category['name'],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategoryId = value;
-                      });
-                    },
-                  ),
+                 DropdownButtonFormField<int>(
+  initialValue: _selectedCategoryId,
+  decoration: InputDecoration(
+    labelText: 'Category',
+    prefixIcon: const Icon(Icons.category_outlined),
+    filled: true,
+    fillColor: Theme.of(context).cardColor,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+        color: Theme.of(context)
+            .dividerColor
+            .withValues(alpha: 0.35),
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.primary,
+        width: 1.5,
+      ),
+    ),
+  ),
+  items: _categories.map((category) {
+    return DropdownMenuItem<int>(
+      value: category['id'],
+      child: Text(
+        category['name'],
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }).toList(),
+  onChanged: (value) {
+    setState(() {
+      _selectedCategoryId = value;
+    });
+  },
+),
 
                   const SizedBox(height: 16),
 
                   // Description
                   TextField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+  controller: _descriptionController,
+  maxLines: 2,
+  textCapitalization: TextCapitalization.sentences,
+  decoration: InputDecoration(
+    labelText: 'Description',
+    hintText: 'What was this transaction for?',
+    prefixIcon: const Padding(
+      padding: EdgeInsets.only(bottom: 20),
+      child: Icon(Icons.notes_outlined),
+    ),
+    alignLabelWithHint: true,
+    filled: true,
+    fillColor: Theme.of(context).cardColor,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+        color: Theme.of(context)
+            .dividerColor
+            .withValues(alpha: 0.35),
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.primary,
+        width: 1.5,
+      ),
+    ),
+  ),
+),
 
                   const SizedBox(height: 16),
 
                   // Date
-                  OutlinedButton.icon(
-                    onPressed: _selectDate,
-                    icon: const Icon(Icons.calendar_today),
-                    label: Text(
-                      '${_selectedDate.day}/'
-                      '${_selectedDate.month}/'
-                      '${_selectedDate.year}',
-                    ),
-                  ),
+                  Container(
+  decoration: BoxDecoration(
+    color: Theme.of(context).cardColor,
+    borderRadius: BorderRadius.circular(14),
+    border: Border.all(
+      color: Theme.of(context)
+          .dividerColor
+          .withValues(alpha: 0.35),
+    ),
+  ),
+  child: ListTile(
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: 14,
+    ),
+    leading: Icon(
+      Icons.calendar_today_outlined,
+      color: Theme.of(context).colorScheme.primary,
+    ),
+    title: const Text(
+      'Transaction Date',
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+    subtitle: Text(
+      '${_selectedDate.day}/'
+      '${_selectedDate.month}/'
+      '${_selectedDate.year}',
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    trailing: const Icon(
+      Icons.chevron_right_rounded,
+    ),
+    onTap: _selectDate,
+  ),
+),
 
                   const SizedBox(height: 16),
 
                   if (_errorMessage != null)
-                    Text(
-                      _errorMessage!,
-                      style: const TextStyle(
-                        color: Colors.red,
-                      ),
-                    ),
+  Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(
+      horizontal: 14,
+      vertical: 12,
+    ),
+    decoration: BoxDecoration(
+      color: Colors.red.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: Colors.red.withValues(alpha: 0.20),
+      ),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.error_outline_rounded,
+          color: Colors.red,
+          size: 20,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            _errorMessage!,
+            style: const TextStyle(
+              color: Colors.red,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
 
                   const SizedBox(height: 10),
 
                   SizedBox(
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed:
-                          _isSaving ? null : _saveTransaction,
-                      child: _isSaving
-                          ? const CircularProgressIndicator()
-                          : const Text('Save Transaction'),
-                    ),
-                  ),
+  height: 54,
+  child: ElevatedButton(
+    onPressed: _isSaving ? null : _saveTransaction,
+    style: ElevatedButton.styleFrom(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      textStyle: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    child: _isSaving
+        ? const SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: Colors.white,
+            ),
+          )
+        : const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.check_rounded,
+                size: 21,
+              ),
+              SizedBox(width: 8),
+              Text('Save Transaction'),
+            ],
+          ),
+  ),
+),
                 ],
               ),
             ),
