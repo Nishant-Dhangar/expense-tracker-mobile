@@ -214,6 +214,79 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
     return Colors.blue;
   }
+  Future<void> _deleteBudget() async {
+  if (_budgetAmount == null) return;
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Delete Budget?'),
+        content: const Text(
+          'Are you sure you want to delete this monthly budget?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmed != true) return;
+
+  setState(() {
+    _isSaving = true;
+    _errorMessage = null;
+  });
+
+  try {
+    final budget = await widget.authService.getBudget(
+      _currentYear,
+      _currentMonth,
+    );
+
+    if (budget == null || budget['id'] == null) {
+      setState(() {
+        _budgetAmount = null;
+        _budgetController.clear();
+        _isSaving = false;
+      });
+      return;
+    }
+
+    await widget.authService.deleteBudget(
+      budget['id'] as int,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _budgetAmount = null;
+      _budgetController.clear();
+      _isSaving = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Budget deleted successfully'),
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    setState(() {
+      _errorMessage = e.toString();
+      _isSaving = false;
+    });
+  }
+}
 Future<void> _checkBudgetNotification() async {
   if (_budgetAmount == null || _budgetAmount! <= 0) {
     return;
@@ -338,7 +411,23 @@ Text(
         ?.withValues(alpha: 0.60),
   ),
 ),
+if (_budgetAmount != null) ...[
+  const SizedBox(height: 12),
 
+  SizedBox(
+    width: double.infinity,
+    child: OutlinedButton.icon(
+      onPressed: _isSaving ? null : _deleteBudget,
+      icon: const Icon(Icons.delete_outline),
+      label: const Text('Delete Budget'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.redAccent,
+        side: const BorderSide(color: Colors.redAccent),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+    ),
+  ),
+],
 const SizedBox(height: 20),
 
           Card(
@@ -357,6 +446,8 @@ const SizedBox(height: 20),
                   ),
 
                   const SizedBox(height: 12),
+                  
+    
 TextField(
   controller: _budgetController,
   keyboardType: const TextInputType.numberWithOptions(

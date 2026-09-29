@@ -12,7 +12,17 @@ late final Future<void> _cookieInitialization;
  AuthService() {
   _cookieInitialization = _initializeCookies();
 }
+Future<String> _getCsrfToken() async {
+  await _cookieInitialization;
 
+  final response = await _dio.get(
+    '$baseUrl/api/auth/csrf',
+  );
+
+  final data = Map<String, dynamic>.from(response.data);
+
+  return data['token'] as String;
+}
 Future<void> _initializeCookies() async {
   final directory = await getApplicationDocumentsDirectory();
 
@@ -27,31 +37,44 @@ Future<void> _initializeCookies() async {
   );
 }
 
-  Future<Map<String, dynamic>> login(
-    String email,
-    String password,
-  ) async {
-    await _cookieInitialization;
-    try {
-      final response = await _dio.post(
-        '$baseUrl/api/auth/login',
-        data: {
-          'email': email,
-          'password': password,
+Future<Map<String, dynamic>> login(
+  String email,
+  String password,
+) async {
+  await _cookieInitialization;
+
+  try {
+    final csrfToken = await _getCsrfToken();
+
+    final response = await _dio.post(
+      '$baseUrl/api/auth/login',
+      data: {
+        'email': email,
+        'password': password,
+      },
+      options: Options(
+        headers: {
+          'X-XSRF-TOKEN': csrfToken,
         },
-      );
-      final prefs = await SharedPreferences.getInstance();
-await prefs.setBool('isLoggedIn', true);
+      ),
+    );
 
-      return Map<String, dynamic>.from(response.data);
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Invalid email or password');
-      }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', true);
 
-      throw Exception('Login failed: ${e.message}');
+    return Map<String, dynamic>.from(response.data);
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 401) {
+      throw Exception('Invalid email or password');
     }
+
+    if (e.response?.statusCode == 403) {
+      throw Exception('Security token rejected');
+    }
+
+    throw Exception('Login failed: ${e.message}');
   }
+}
 
   Future<Map<String, dynamic>> getCurrentUser() async {
     await _cookieInitialization;
@@ -67,15 +90,22 @@ await prefs.setBool('isLoggedIn', true);
       );
     }
   }
-  Future<Map<String, dynamic>> updateProfile(String name) async {
+Future<Map<String, dynamic>> updateProfile(String name) async {
   await _cookieInitialization;
 
   try {
+    final csrfToken = await _getCsrfToken();
+
     final response = await _dio.put(
       '$baseUrl/api/auth/profile',
       data: {
         'name': name,
       },
+      options: Options(
+        headers: {
+          'X-XSRF-TOKEN': csrfToken,
+        },
+      ),
     );
 
     return Map<String, dynamic>.from(response.data);
@@ -94,15 +124,27 @@ await prefs.setBool('isLoggedIn', true);
 
 Future<void> logout() async {
   await _cookieInitialization;
+
   try {
-    await _dio.post('$baseUrl/api/auth/logout');
+    final csrfToken = await _getCsrfToken();
+
+    await _dio.post(
+      '$baseUrl/api/auth/logout',
+      options: Options(
+        headers: {
+          'X-XSRF-TOKEN': csrfToken,
+        },
+      ),
+    );
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', false);
 
-    _cookieJar.deleteAll();
+    await _cookieJar.deleteAll();
   } on DioException catch (e) {
-    throw Exception('Logout failed: ${e.message}');
+    throw Exception(
+      'Logout failed: ${e.message}',
+    );
   }
 }
 
@@ -145,18 +187,25 @@ Future<void> logout() async {
   }) async {
     await _cookieInitialization;
     try {
-      final response = await _dio.post(
-        '$baseUrl/api/transactions',
-        data: {
-          'amount': amount,
-          'type': type,
-          'description': description,
-          'transactionDate': transactionDate,
-          'category': {
-            'id': categoryId,
-          },
-        },
-      );
+     final csrfToken = await _getCsrfToken();
+
+final response = await _dio.post(
+  '$baseUrl/api/transactions',
+  data: {
+    'amount': amount,
+    'type': type,
+    'description': description,
+    'transactionDate': transactionDate,
+    'category': {
+      'id': categoryId,
+    },
+  },
+  options: Options(
+    headers: {
+      'X-XSRF-TOKEN': csrfToken,
+    },
+  ),
+);
 
       return Map<String, dynamic>.from(response.data);
     } on DioException catch (e) {
@@ -173,18 +222,26 @@ Future<void> logout() async {
     }
   }
 
-  Future<void> deleteTransaction(int id) async {
-    await _cookieInitialization;
-    try {
-      await _dio.delete(
-        '$baseUrl/api/transactions/$id',
-      );
-    } on DioException catch (e) {
-      throw Exception(
-        'Unable to delete transaction: ${e.message}',
-      );
-    }
+ Future<void> deleteTransaction(int id) async {
+  await _cookieInitialization;
+
+  try {
+    final csrfToken = await _getCsrfToken();
+
+    await _dio.delete(
+      '$baseUrl/api/transactions/$id',
+      options: Options(
+        headers: {
+          'X-XSRF-TOKEN': csrfToken,
+        },
+      ),
+    );
+  } on DioException catch (e) {
+    throw Exception(
+      'Unable to delete transaction: ${e.message}',
+    );
   }
+}
   Future<Map<String, dynamic>> updateTransaction({
   required int id,
   required double amount,
@@ -195,18 +252,25 @@ Future<void> logout() async {
 }) async {
   await _cookieInitialization;
   try {
-    final response = await _dio.put(
-      '$baseUrl/api/transactions/$id',
-      data: {
-        'amount': amount,
-        'type': type,
-        'description': description,
-        'transactionDate': transactionDate,
-        'category': {
-          'id': categoryId,
-        },
-      },
-    );
+   final csrfToken = await _getCsrfToken();
+
+final response = await _dio.put(
+  '$baseUrl/api/transactions/$id',
+  data: {
+    'amount': amount,
+    'type': type,
+    'description': description,
+    'transactionDate': transactionDate,
+    'category': {
+      'id': categoryId,
+    },
+  },
+  options: Options(
+    headers: {
+      'X-XSRF-TOKEN': csrfToken,
+    },
+  ),
+);
 
     return Map<String, dynamic>.from(response.data);
   } on DioException catch (e) {
@@ -253,14 +317,21 @@ Future<Map<String, dynamic>> saveBudget({
   await _cookieInitialization;
 
   try {
-    final response = await _dio.post(
-      '$baseUrl/api/budgets',
-      data: {
-        'month': month,
-        'year': year,
-        'amount': amount,
-      },
-    );
+   final csrfToken = await _getCsrfToken();
+
+final response = await _dio.post(
+  '$baseUrl/api/budgets',
+  data: {
+    'month': month,
+    'year': year,
+    'amount': amount,
+  },
+  options: Options(
+    headers: {
+      'X-XSRF-TOKEN': csrfToken,
+    },
+  ),
+);
 
     return Map<String, dynamic>.from(response.data);
   } on DioException catch (e) {
@@ -269,7 +340,24 @@ Future<Map<String, dynamic>> saveBudget({
     );
   }
 }
+Future<void> deleteBudget(int id) async {
+  await _cookieInitialization;
 
+  final csrfToken = await _getCsrfToken();
+
+  final response = await _dio.delete(
+    '$baseUrl/api/budgets/$id',
+    options: Options(
+      headers: {
+        'X-XSRF-TOKEN': csrfToken,
+      },
+    ),
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception('Failed to delete budget');
+  }
+}
 Future<Map<String, dynamic>> register({
   required String name,
   required String email,
@@ -278,13 +366,20 @@ Future<Map<String, dynamic>> register({
   await _cookieInitialization;
 
   try {
+    final csrfToken = await _getCsrfToken();
+
     final response = await _dio.post(
-  '$baseUrl/api/users/register',
+      '$baseUrl/api/users/register',
       data: {
         'name': name,
         'email': email,
         'password': password,
       },
+      options: Options(
+        headers: {
+          'X-XSRF-TOKEN': csrfToken,
+        },
+      ),
     );
 
     return Map<String, dynamic>.from(response.data);

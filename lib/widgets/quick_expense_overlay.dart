@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-
+import '../services/notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 class QuickExpenseOverlay extends StatefulWidget {
   final AuthService authService;
 
@@ -351,7 +352,99 @@ SizedBox(
       ),
     );
   }
+Future<void> _checkBudgetNotification() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
 
+    final notificationsEnabled =
+        prefs.getBool('notificationsEnabled') ?? false;
+
+    if (!notificationsEnabled) return;
+
+    final now = DateTime.now();
+
+    final budget = await widget.authService.getBudget(
+  now.year,
+  now.month,
+);
+
+    if (budget == null || budget['amount'] == null) return;
+
+    final budgetAmount = (budget['amount'] as num).toDouble();
+
+    if (budgetAmount <= 0) return;
+
+    final transactions =
+        await widget.authService.getTransactions();
+
+    double spentAmount = 0;
+
+    for (final transaction in transactions) {
+      final type = transaction['type']?.toString().toUpperCase();
+      final dateString = transaction['transactionDate']?.toString();
+
+      if (type != 'EXPENSE' || dateString == null) continue;
+
+      final date = DateTime.tryParse(dateString);
+
+      if (date != null &&
+          date.year == now.year &&
+          date.month == now.month) {
+        spentAmount +=
+            (transaction['amount'] as num).toDouble();
+      }
+    }
+
+    final percentage = (spentAmount / budgetAmount) * 100;
+
+    final currentUser =
+        await widget.authService.getCurrentUser();
+
+    final userId = currentUser['id'];
+
+    if (userId == null) return;
+
+    final budget80Key =
+        'budget80Notified_${userId}_${now.year}_${now.month}';
+
+    final budget100Key =
+        'budget100Notified_${userId}_${now.year}_${now.month}';
+
+    if (percentage >= 100) {
+      final alreadyNotified =
+          prefs.getBool(budget100Key) ?? false;
+
+      if (!alreadyNotified) {
+        await NotificationService.showBudgetAlert(
+          title: 'Budget Exceeded',
+          body:
+              'You have exceeded your monthly budget by ₹${(spentAmount - budgetAmount).toStringAsFixed(2)}.',
+        );
+
+        await prefs.setBool(budget100Key, true);
+      }
+
+      return;
+    }
+
+    if (percentage >= 80) {
+      final alreadyNotified =
+          prefs.getBool(budget80Key) ?? false;
+
+      if (!alreadyNotified) {
+        await NotificationService.showBudgetAlert(
+          title: 'Budget Alert',
+          body:
+              'You have used ${percentage.toStringAsFixed(0)}% of your monthly budget.',
+        );
+
+        await prefs.setBool(budget80Key, true);
+      }
+    }
+  } catch (_) {
+    // Notification failure should not prevent saving the expense.
+  }
+}
   Future<void> _saveExpense() async {
     final amount =
         double.tryParse(_amountController.text.trim());
@@ -383,17 +476,20 @@ SizedBox(
           '${now.month.toString().padLeft(2, '0')}-'
           '${now.day.toString().padLeft(2, '0')}';
 
-      await widget.authService.addTransaction(
-        amount: amount,
-        type: 'EXPENSE',
-        description: _noteController.text.trim(),
-        transactionDate: date,
-        categoryId: _selectedCategoryId!,
-      );
+     await widget.authService.addTransaction(
+  amount: amount,
+  type: 'EXPENSE',
+  description: _noteController.text.trim(),
+  transactionDate: date,
+  categoryId: _selectedCategoryId!,
+);
 
-      if (!mounted) return;
+// Check budget after the expense has been saved.
+await _checkBudgetNotification();
 
-      Navigator.pop(context, true);
+if (!mounted) return;
+
+Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
 
