@@ -144,19 +144,18 @@ Safe API response DTOs
 
 Users can only access their own transactions and budgets.
 
-🌐 Related Projects
-Backend
+## 🌐 Related Projects
+
+### Backend
 
 Spring Boot REST API and MySQL integration:
 
-Repository:
 https://github.com/Nishant-Dhangar/Expense-tracker
 
-Web Dashboard
+### Web Dashboard
 
-Responsive web interface for the same backend:
+Responsive web interface using the same backend:
 
-Live Web App:
 https://expense-tracker-web-eight-alpha.vercel.app/
 
 🚀 Getting Started
